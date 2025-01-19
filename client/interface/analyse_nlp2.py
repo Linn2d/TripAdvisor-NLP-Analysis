@@ -14,6 +14,8 @@ mots_vides = stopwords.words("french")
 mots_vides.append('très')
 mots_vides.append('avon')
 mots_vides.append('plu')
+
+
 import io 
 #pour la tokénisation
 from nltk.tokenize import word_tokenize
@@ -30,6 +32,63 @@ import os
 from transformers import pipeline
 #from bertopic import BERTopic
 from nrclex import NRCLex
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import numpy as np
+
+def load_css():
+    st.markdown("""
+        <style>
+        .main {
+            padding: 2rem;
+        }
+        .title-container {
+            background: linear-gradient(to right, #1e3c72, #2a5298);
+            padding: 2rem;
+            border-radius: 10px;
+            color: white;
+            margin-bottom: 2rem;
+        }
+        .feature-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 1rem 0;
+        }
+        .team-card {
+            text-align: center;
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+
+
+# Construire le chemin vers fichier de stopwords
+# Déterminer le répertoire du script courant
+chemin_actuel = os.path.dirname(__file__)  # Répertoire client/interface
+# Construire le chemin vers le fichier stopwords-fr.txt en remontant d'un niveau
+chemin_stopwords = os.path.join(chemin_actuel, "..", "stopwords-fr.txt")
+# Normaliser le chemin pour éviter les problèmes de syntaxe selon le système d'exploitation
+chemin_stopwords = os.path.normpath(chemin_stopwords)
+try:
+    with open(chemin_stopwords, "r", encoding="utf-8") as f:
+        stopwords_local = f.read().splitlines()
+        mots_vides.extend(stopwords_local)
+except FileNotFoundError:
+    print(f"Le fichier {chemin_stopwords} n'a pas été trouvé.")
+
 
 def nettoyage_doc(doc_param):
     # Passage en minuscule
@@ -139,9 +198,16 @@ def get_word2vec_model(corpus, model_path="word2vec_reviews.model"):
             )
         model.save(model_path)
     return model
+    
 
 def show():
-    st.title("Analyse NLP")
+    
+    # st.title("Analyse NLP")
+    st.markdown("""
+        <div class='title-container'>
+            <h1> ☁️ Analyse NLP</h1>    
+        </div>
+    """, unsafe_allow_html=True)
 
     db = next(get_db())
     try:
@@ -172,7 +238,7 @@ def show():
 
         # Filtre sous le titre
     restaurant_names = data['nom'].unique().tolist()
-    selected_restaurant = st.selectbox("Choisissez un restaurant :", restaurant_names)
+    selected_restaurant = st.selectbox("Choisissez un restaurant à analyser :", restaurant_names)
 
     # Filtrer les avis en fonction du restaurant sélectionné
     filtered_reviews = data[data['nom'] == selected_restaurant].copy()
@@ -182,7 +248,7 @@ def show():
     #st.dataframe(reviews_df)
 
 
-    tab1, tab2, tab3 = st.tabs(["WordClouds & Émotions", "Recherche de mots", "Aperçu & Graphique"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Analyse inter restaurant","WordClouds & Émotions", "Recherche de mots", "Aperçu & Graphique"])
     
     #  # -- Ajout du filtre sur les notes (1 à 5)
     # possible_notes = sorted(filtered_reviews['nb_etoiles'].unique())
@@ -209,7 +275,76 @@ def show():
     #filtered_reviews['polarity'] = polarities
     filtered_reviews['sentiment'] = sentiments
 
+
+    
     with tab1:
+        st.header("Analyse globale inter restaurant")
+
+
+    # Charger le modèle Word2Vec global
+        model_all = get_word2vec_model(global_corpus_nettoye)
+
+        # Regrouper les avis par restaurant
+        restaurant_groups = reviews_df.groupby('nom')['review'].apply(list).reset_index()
+
+        restaurant_names = []
+        restaurant_vectors = []
+        # Calcul des vecteurs moyens par restaurant
+        for _, row in restaurant_groups.iterrows():
+            nom = row['nom']
+            avis = row['review']
+            # Nettoyer et tokeniser les avis
+            tokens = nettoyage_corpus(avis)
+            # Filtrer les tokens présents dans le vocabulaire Word2Vec
+            tokens = [mot for doc in tokens for mot in doc if mot in model_all.wv.key_to_index]
+            
+            if tokens:
+                # Calculer la moyenne des vecteurs de mots pour le restaurant
+                word_vectors = [model_all.wv[mot] for mot in tokens]
+                mean_vector = np.mean(word_vectors, axis=0)
+                restaurant_names.append(nom)
+                restaurant_vectors.append(mean_vector)
+
+        if restaurant_vectors:
+            restaurant_vectors_np = np.array(restaurant_vectors)
+            perplexity_value = min(30, len(restaurant_vectors_np) - 1)
+
+            # Réduire à 3 dimensions avec t-SNE
+            tsne = TSNE(n_components=3, random_state=42, perplexity=perplexity_value)
+            vectors_3d = tsne.fit_transform(restaurant_vectors_np)
+            
+            # Créer une figure 3D interactive avec Plotly
+            fig = go.Figure(data=[go.Scatter3d(
+                x=vectors_3d[:, 0],
+                y=vectors_3d[:, 1],
+                z=vectors_3d[:, 2],
+                mode='markers+text',
+                text=restaurant_names,  # Annote chaque point avec le nom du restaurant
+                textposition="top center",
+                marker=dict(
+                    size=5,
+                    color=vectors_3d[:, 2],  # Couleur basée sur la troisième dimension par exemple
+                    colorscale='Viridis',
+                    opacity=0.8
+                )
+            )])
+
+            fig.update_layout(
+                title="Proximité inter restaurant basée sur Word2Vec et t-SNE",
+                scene=dict(
+                    xaxis_title='Dimension 1',
+                    yaxis_title='Dimension 2',
+                    zaxis_title='Dimension 3'
+                ),
+                width=1000,   # largeur souhaitée en pixels
+                height=800    # hauteur souhaitée en pixels
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Aucun restaurant avec des données suffisantes pour la visualisation.")
+
+    with tab2:
         st.header("WordClouds pour les avis positifs et négatifs")
         # Filtrer les commentaires par notes
         global_negatifs = reviews_df[reviews_df['nb_etoiles'].isin([1, 2])]
@@ -271,7 +406,7 @@ def show():
         st.table(df_emotions)
 
 
-    with tab2:
+    with tab3:
         st.header("Recherche de mots similaires avec Word2Vec")
         # Saisie utilisateur pour le mot de recherche
         mot_recherche = st.text_input("Entrez un mot pour trouver des mots similaires :", value="parfait")
@@ -313,7 +448,7 @@ def show():
 
 
 
-    with tab3:
+    with tab4:
         
         st.header("Aperçu des commentaires et évolution mensuelle")
 
@@ -383,52 +518,3 @@ def show():
         else:
             st.info("Veuillez sélectionner au moins une année.")
 
-
-    # # Créer et ajuster le modèle
-    # topic_model = BERTopic(language="french")  # Spécifiez la langue si nécessaire
-    # topics, probs = topic_model.fit_transform(corpus_final)  # corpus_final : vos textes nettoyés
-
-    # # Voir les thèmes
-    # topic_info = topic_model.get_topic_info()
-    # st.write(topic_info)
-
-    # # Pour chaque sujet, afficher les mots principaux
-    # for topic_id in topic_info.Topic:
-    #     st.write(f"Thème {topic_id}: {topic_model.get_topic(topic_id)}")
-
-    # st.header("Thèmes et leurs 5 mots associés")
-
-    # # Récupérer les informations sur les sujets
-    # topic_info = topic_model.get_topic_info()
-
-    # # Filtrer pour exclure le thème -1 et sélectionner les 5 premiers thèmes
-    # valid_topics = topic_info[topic_info.Topic != -1].head(5)
-
-    # for _, row in valid_topics.iterrows():
-    #     topic_id = row['Topic']
-    #     # Obtenir les mots clés et leurs poids pour le sujet
-    #     topic_words = topic_model.get_topic(topic_id)
-    #     if not topic_words:
-    #         continue  # Si aucun mot n'est trouvé, passer au suivant
-        
-    #     # Limiter à 5 mots
-    #     top_words = topic_words[:5]
-        
-    #     # Décomposer en deux listes : mots et scores
-    #     mots = [word for word, _ in top_words]
-    #     scores = [score for _, score in top_words]
-        
-    #     st.subheader(f"Thème {topic_id}")
-    #     st.write(f"Top 5 Mots clés : {', '.join(mots)}")
-        
-    #     # Création du graphique en barres pour ce sujet
-    #     fig, ax = plt.subplots()
-    #     ax.barh(mots, scores, color="skyblue")
-    #     ax.invert_yaxis()  # Afficher le mot le plus important en haut
-    #     ax.set_xlabel("Poids")
-    #     ax.set_title(f"Mots clés du Thème {topic_id}")
-        
-    #     st.pyplot(fig)
-
-        # Supposons que 'corpus_final' est une liste de commentaires nettoyés
-    # ...
