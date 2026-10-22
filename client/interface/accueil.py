@@ -1,7 +1,7 @@
 import streamlit as st
 from PIL import Image
 import os
-
+from pathlib import Path
 def load_css():
     st.markdown("""
         <style>
@@ -66,7 +66,9 @@ def show():
         # st.image("https://c.clc2l.com/c/screenshot/d/tripadvisor-resultats-61079ffde3239346241387.jpg")
         # st.image('image.png')
         # Corrected image display
-        st.image('data/image.png')
+        # st.image('data/image.png')
+        IMAGE_PATH = Path(__file__).resolve().parents[1] / "data" / "image.png"
+        st.image(str(IMAGE_PATH))
     # Features Section
     st.markdown("## ✨ Fonctionnalités")
     col1, col2, col3 = st.columns(3)
