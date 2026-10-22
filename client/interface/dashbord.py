@@ -51,9 +51,8 @@ def load_data():
         df_location = read_location(db)
     return df_restaurant, df_date, df_review, df_location
 
-df_restaurant, df_date, df_review, df_location = load_data()
-
 def show():
+    df_restaurant, df_date, df_review, df_location = load_data()
     st.markdown("""
         <div class='title-container'>
             <h1> ☁️ Analyse des performances des restaurants</h1>    
