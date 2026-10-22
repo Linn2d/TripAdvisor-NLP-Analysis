@@ -63,7 +63,7 @@ def show():
     # path = "./ChromaDB11"
     path = "./"
     # generation_model = "ministral-8b-latest"
-    generation_model = "mistral-small-latest"
+    generation_model = "ministral-3b-2512"
     max_tokens = 1000
     temperature = 0.2
     role_prompt = (
