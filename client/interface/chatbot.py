@@ -63,7 +63,7 @@ def show():
     # path = "./ChromaDB11"
     path = "./"
     # generation_model = "ministral-8b-latest"
-    generation_model = "mistral/mistral-small-latest"
+    generation_model = "mistral-small-latest"
     max_tokens = 1000
     temperature = 0.2
     role_prompt = (
@@ -102,7 +102,7 @@ def show():
         role_prompt=role_prompt,
         generation_model=generation_model,
         bdd_chunks=instantiate_bdd(path=path),
-        top_n=1000,
+        top_n=5,
         max_tokens=max_tokens,
         temperature=temperature,
     )

@@ -259,9 +259,6 @@ class AugmentedRAG:
     database (or corpus) and then passes it to a generative model for further processing.
 
     """
-    HF_TOKEN = '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'
-    MISTRAL_API_KEY =  'dkMKu81kFgJeP7HmIqjztosQTxyiynW6'
-
 
     def __init__(
         self,
