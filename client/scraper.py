@@ -7,9 +7,12 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
  
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
-import os
+import os, sys
 import logging
 import shutil
 import time
@@ -30,40 +33,31 @@ class TripadvisorScraper:
         self.driver = None
 
     def create_driver(self):
-       
-        browser_executable_path = shutil.which("chromium")
+        browser_executable_path = shutil.which("chromium") or "/usr/bin/chromium"
+        driver_path = shutil.which("chromedriver") or "/usr/bin/chromedriver"
 
         Path('selenium.log').unlink(missing_ok=True)
-        time.sleep(1)
 
         options = uc.ChromeOptions()
-        user_agents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        ]
-        options.binary_location = "/usr/bin/chromium"
+        options.binary_location = browser_executable_path
         options.add_argument("--headless=new")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
         options.add_argument("--disable-blink-features=AutomationControlled")
         options.add_argument("--incognito")
-        options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-dev-shm-usage")
-        # options.add_argument("--headless")
-        # options.add_argument("--no-sandbox")
-        # options.add_argument("--disable-dev-shm-usage")
-        # options.add_argument("--disable-gpu")
-        # options.add_argument("--disable-features=NetworkService")
-        # options.add_argument("--window-size=1920x1080")
-        # options.add_argument("--disable-features=VizDisplayCompositor")
-        user_agent = random.choice(user_agents)
-        options.add_argument(f'--user-agent={user_agent}')
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument(
+            "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
 
-        return uc.Chrome(browser_executable_path=browser_executable_path,
-                options=options,
-                use_subprocess=False,
-                log_level=logging.DEBUG,
-                service_log_path='selenium.log')
+        return uc.Chrome(
+            browser_executable_path=browser_executable_path,
+            driver_executable_path=driver_path,
+            options=options,
+            use_subprocess=False,
+        )
     
     def handle_cookies(self):
         try:
