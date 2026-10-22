@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from manager import read_restaurant, read_location, get_db, read_review, read_date
-
+import os, manager
+from utils import database
+from model import models
 
 def load_css():
     st.markdown("""
@@ -39,7 +41,7 @@ def load_css():
         }
         </style>
     """, unsafe_allow_html=True)
-
+@st.cache_data(ttl=3600)
 def load_data():
     db = next(get_db())
     with db:
@@ -59,7 +61,22 @@ def show():
     """, unsafe_allow_html=True)
 
     tab1, tab2 = st.tabs(["Analyse Globale", "Analyse des Avis"])
+    st.write("URL base :", str(database.engine.url))
 
+    data_dir = os.path.join(os.path.dirname(manager.__file__), "data")
+    st.write("data_dir :", data_dir, "| existe :", os.path.isdir(data_dir))
+
+    if os.path.isdir(data_dir):
+        files = manager.get_data_list(data_dir)
+        st.write("Nombre de JSON :", len(files))
+        if files:
+            p = os.path.join(data_dir, files[0])
+            st.write("Taille du 1er fichier :", os.path.getsize(p))
+            st.code(open(p, encoding="utf-8").read(200))
+            st.write("Clés :", list(manager.read_json_file(p).keys()))
+
+    db = next(manager.get_db())
+    st.write("Restaurants en base :", db.query(models.DimRestaurant).count())   
  
     # Onglet 1 : Analyse Globale
     with tab1:
