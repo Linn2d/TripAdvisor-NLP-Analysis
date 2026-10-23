@@ -20,7 +20,9 @@ TripAdvisor-NLP-Analysis/
 ├── render.yaml              # Configuration pour le déploiement
 └── docker-compose.yml       # Configuration Docker pour orchestrer les services
 ```
+## Démo en ligne
 
+Accédez à l'application ici : [App NLP sur Streamlit Cloud](https://tripadvisor-nlp-analysis-mjvzbk4k9p3sg3lzauy4it.streamlit.app/)
 ---
 
 ## **Remarques importantes** :
